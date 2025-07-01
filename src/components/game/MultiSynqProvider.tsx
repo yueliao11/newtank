@@ -112,6 +112,7 @@ class GameView extends Multisynq.View {
     this.subscribe('game', 'game-restarted', this.onGameRestarted)
     this.subscribe('game', 'monsters-spawned', this.onMonstersSpawned)
     this.subscribe('game', 'explosion', this.onExplosion)
+    this.subscribe('game', 'player-shot', this.onPlayerShot)
     
     console.log('GameView initialized for viewId:', this.viewId)
   }
@@ -124,11 +125,32 @@ class GameView extends Multisynq.View {
     store.setRoundTimeRemaining(data.roundTimeRemaining)
     store.setMonstersRemaining(data.monstersCount)
     
-    // 更新玩家数据
+    // 更新玩家数据 - 使用地址去重
     const playersMap = new Map()
+    const addressToViewId = new Map()
+    
     data.players.forEach((playerData: any) => {
-      playersMap.set(playerData.viewId, playerData)
+      const address = playerData.address
+      
+      // 如果有地址，检查是否已存在相同地址的玩家
+      if (address && addressToViewId.has(address)) {
+        const existingViewId = addressToViewId.get(address)
+        const existingPlayer = playersMap.get(existingViewId)
+        
+        // 保留分数更高的玩家
+        if (!existingPlayer || playerData.score > existingPlayer.score) {
+          playersMap.delete(existingViewId)
+          playersMap.set(playerData.viewId, playerData)
+          addressToViewId.set(address, playerData.viewId)
+        }
+      } else {
+        playersMap.set(playerData.viewId, playerData)
+        if (address) {
+          addressToViewId.set(address, playerData.viewId)
+        }
+      }
     })
+    
     store.setPlayers(playersMap)
     
     // 更新怪物数据
@@ -191,6 +213,12 @@ class GameView extends Multisynq.View {
     console.log('Explosion triggered:', data)
     const store = useGameStore.getState()
     store.addExplosion(data.position, data.size, data.color)
+  }
+
+  onPlayerShot(data: any) {
+    console.log('Player shot:', data)
+    const store = useGameStore.getState()
+    store.addMuzzleFlash(data.playerId, data.position, data.rotation)
   }
 
   // 发送输入到游戏模型

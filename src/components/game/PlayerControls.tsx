@@ -3,7 +3,7 @@ import { useGameStore } from '@/store/gameStore'
 import { useMultiSynq } from './MultiSynqProvider'
 
 export const PlayerControls: React.FC = () => {
-  const { session, myViewId, isConnected } = useMultiSynq()
+  const { session, isConnected } = useMultiSynq()
   const { inputState, setInputState } = useGameStore()
   const keysPressed = useRef<Set<string>>(new Set())
   const mousePosition = useRef({ x: 0, y: 0 })
@@ -14,7 +14,7 @@ export const PlayerControls: React.FC = () => {
     if (!session?.view || !isConnected) return
     
     const now = Date.now()
-    if (now - lastInputSent.current.move < 50) return // 限制到 20fps
+    if (now - lastInputSent.current.move < 25) return // 限制到 40fps，提高响应性
     
     const moveData = {
       forward: inputState.moveForward,
@@ -32,7 +32,7 @@ export const PlayerControls: React.FC = () => {
     if (!session?.view || !isConnected) return
     
     const now = Date.now()
-    if (now - lastInputSent.current.rotate < 50) return // 限制到 20fps
+    if (now - lastInputSent.current.rotate < 25) return // 限制到 40fps，提高响应性
     
     session.view.sendInput('rotate', { rotation })
     lastInputSent.current.rotate = now
@@ -84,6 +84,13 @@ export const PlayerControls: React.FC = () => {
         event.preventDefault()
         newInputState.shoot = true
         sendShootInput(true)
+        break
+      case 'f2':
+        event.preventDefault()
+        {
+          const { minimapVisible, setMinimapVisible } = useGameStore.getState()
+          setMinimapVisible(!minimapVisible)
+        }
         break
     }
     

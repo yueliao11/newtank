@@ -9,10 +9,22 @@ interface Explosion {
   timestamp: number
 }
 
+interface MuzzleFlash {
+  id: string
+  playerId: string
+  position: { x: number; y: number; z: number }
+  rotation: number
+  timestamp: number
+}
+
 interface GameStore extends GameState {
   // 输入状态
   inputState: InputState
   setInputState: (input: Partial<InputState>) => void
+  
+  // 小地图状态
+  minimapVisible: boolean
+  setMinimapVisible: (visible: boolean) => void
   
   // 玩家相关
   setPlayers: (players: Map<string, Player>) => void
@@ -36,6 +48,11 @@ interface GameStore extends GameState {
   addExplosion: (position: { x: number; y: number; z: number }, size?: number, color?: string) => void
   removeExplosion: (explosionId: string) => void
   
+  // 开火效果
+  muzzleFlashes: MuzzleFlash[]
+  addMuzzleFlash: (playerId: string, position: { x: number; y: number; z: number }, rotation: number) => void
+  removeMuzzleFlash: (flashId: string) => void
+  
   // 游戏状态
   setGameState: (state: 'waiting' | 'playing' | 'finished' | 'results') => void
   setActive: (active: boolean) => void
@@ -58,6 +75,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   monsters: new Map(),
   bullets: new Map(),
   explosions: [],
+  muzzleFlashes: [],
   leaderboard: [],
   roundTimeRemaining: 180,
   monstersRemaining: 0,
@@ -72,6 +90,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
     mouseX: 0,
     mouseY: 0,
   },
+  
+  // 小地图状态
+  minimapVisible: true,
+  setMinimapVisible: (visible: boolean) => set({ minimapVisible: visible }),
   
   setInputState: (input) => 
     set((state) => ({
@@ -165,6 +187,24 @@ export const useGameStore = create<GameStore>((set, get) => ({
   removeExplosion: (explosionId) =>
     set((state) => ({
       explosions: state.explosions.filter(e => e.id !== explosionId)
+    })),
+  
+  // 开火效果管理
+  addMuzzleFlash: (playerId, position, rotation) =>
+    set((state) => {
+      const muzzleFlash: MuzzleFlash = {
+        id: `muzzle_${Date.now()}_${Math.random()}`,
+        playerId,
+        position,
+        rotation,
+        timestamp: Date.now()
+      }
+      return { muzzleFlashes: [...state.muzzleFlashes, muzzleFlash] }
+    }),
+  
+  removeMuzzleFlash: (flashId) =>
+    set((state) => ({
+      muzzleFlashes: state.muzzleFlashes.filter(f => f.id !== flashId)
     })),
   
   // 游戏状态管理

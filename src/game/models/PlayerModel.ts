@@ -23,6 +23,11 @@ export class PlayerModel extends Multisynq.Model {
     moveRight: false,
     shoot: false,
   }
+  
+  // 移动相关的物理属性
+  velocity = { x: 0, z: 0 }
+  acceleration = 0.8
+  friction = 0.85
 
   init(options: { viewId: string; address?: string; color?: string }) {
     console.log(`${this.now()}: Player ${options.viewId} created`)
@@ -65,36 +70,47 @@ export class PlayerModel extends Multisynq.Model {
   update() {
     if (!this.isAlive) return
     
-    // 移动逻辑
-    if (this.controls.moveForward || this.controls.moveBackward || 
-        this.controls.moveLeft || this.controls.moveRight) {
-      
-      const speed = GAME_CONFIG.PLAYER_MOVE_SPEED / 60 // 转换为每帧速度
-      let moveX = 0
-      let moveZ = 0
-      
-      if (this.controls.moveForward) {
-        moveX += Math.sin(this.rotation) * speed
-        moveZ += Math.cos(this.rotation) * speed
-      }
-      if (this.controls.moveBackward) {
-        moveX -= Math.sin(this.rotation) * speed * 0.5
-        moveZ -= Math.cos(this.rotation) * speed * 0.5
-      }
-      if (this.controls.moveLeft) {
-        moveX += Math.sin(this.rotation - Math.PI / 2) * speed * 0.7
-        moveZ += Math.cos(this.rotation - Math.PI / 2) * speed * 0.7
-      }
-      if (this.controls.moveRight) {
-        moveX += Math.sin(this.rotation + Math.PI / 2) * speed * 0.7
-        moveZ += Math.cos(this.rotation + Math.PI / 2) * speed * 0.7
-      }
-      
-      // 更新位置，限制在地图范围内
-      const mapSize = GAME_CONFIG.MAP_SIZE / 2
-      this.position.x = Math.max(-mapSize, Math.min(mapSize, this.position.x + moveX))
-      this.position.z = Math.max(-mapSize, Math.min(mapSize, this.position.z + moveZ))
+    // 计算加速度
+    const maxSpeed = GAME_CONFIG.PLAYER_MOVE_SPEED / 20
+    let accelX = 0
+    let accelZ = 0
+    
+    if (this.controls.moveForward) {
+      accelX += Math.sin(this.rotation) * this.acceleration
+      accelZ += Math.cos(this.rotation) * this.acceleration
     }
+    if (this.controls.moveBackward) {
+      accelX -= Math.sin(this.rotation) * this.acceleration * 0.6
+      accelZ -= Math.cos(this.rotation) * this.acceleration * 0.6
+    }
+    if (this.controls.moveLeft) {
+      accelX += Math.sin(this.rotation - Math.PI / 2) * this.acceleration * 0.8
+      accelZ += Math.cos(this.rotation - Math.PI / 2) * this.acceleration * 0.8
+    }
+    if (this.controls.moveRight) {
+      accelX += Math.sin(this.rotation + Math.PI / 2) * this.acceleration * 0.8
+      accelZ += Math.cos(this.rotation + Math.PI / 2) * this.acceleration * 0.8
+    }
+    
+    // 更新速度
+    this.velocity.x += accelX
+    this.velocity.z += accelZ
+    
+    // 应用摩擦力
+    this.velocity.x *= this.friction
+    this.velocity.z *= this.friction
+    
+    // 限制最大速度
+    const currentSpeed = Math.sqrt(this.velocity.x * this.velocity.x + this.velocity.z * this.velocity.z)
+    if (currentSpeed > maxSpeed) {
+      this.velocity.x = (this.velocity.x / currentSpeed) * maxSpeed
+      this.velocity.z = (this.velocity.z / currentSpeed) * maxSpeed
+    }
+    
+    // 更新位置
+    const mapSize = GAME_CONFIG.MAP_SIZE / 2
+    this.position.x = Math.max(-mapSize, Math.min(mapSize, this.position.x + this.velocity.x))
+    this.position.z = Math.max(-mapSize, Math.min(mapSize, this.position.z + this.velocity.z))
   }
 
   shoot() {
@@ -130,6 +146,13 @@ export class PlayerModel extends Multisynq.Model {
     if (game && game.bullets) {
       game.bullets.set(bullet.id, bullet)
     }
+    
+    // 发布开火事件用于显示视觉效果
+    this.publish('game', 'player-shot', {
+      playerId: this.viewId,
+      position: bulletPosition,
+      rotation: this.rotation
+    })
   }
 
   takeDamage(damage: number, attackerId: string) {
@@ -186,6 +209,9 @@ export class PlayerModel extends Multisynq.Model {
       moveRight: false,
       shoot: false,
     }
+    
+    // 重置物理状态
+    this.velocity = { x: 0, z: 0 }
   }
 
   getRandomSpawnPosition() {

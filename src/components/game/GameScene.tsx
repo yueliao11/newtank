@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react'
+import React, { useRef } from 'react'
 import { Canvas, useFrame } from '@react-three/fiber'
 import { OrbitControls, Environment, Grid } from '@react-three/drei'
 import * as THREE from 'three'
@@ -9,10 +9,11 @@ import { TankMesh } from './entities/TankMesh'
 import { MonsterMesh } from './entities/MonsterMesh'
 import { BulletMesh } from './entities/BulletMesh'
 import { ExplosionEffect } from './entities/ExplosionEffect'
+import { Minimap } from './Minimap'
 
 export const GameScene: React.FC = () => {
   return (
-    <div className="w-full h-full">
+    <div className="w-full h-full relative">
       <Canvas
         shadows
         camera={{ 
@@ -39,21 +40,23 @@ export const GameScene: React.FC = () => {
       >
         <SceneContent />
       </Canvas>
+      
+      {/* 小地图覆盖层 */}
+      <Minimap />
     </div>
   )
 }
 
 const SceneContent: React.FC = () => {
   const { myViewId } = useMultiSynq()
-  const { players, monsters, bullets, explosions, gameState, removeExplosion } = useGameStore()
-  const cameraRef = useRef<THREE.Camera>()
+  const { players, monsters, bullets, explosions, removeExplosion } = useGameStore()
   const controlsRef = useRef<any>()
 
   // 找到我的玩家
   const myPlayer = Array.from(players.values()).find(p => p.viewId === myViewId)
 
   // 相机跟随逻辑
-  useFrame((state) => {
+  useFrame((state, delta) => {
     if (myPlayer && myPlayer.isAlive && controlsRef.current) {
       // 计算目标位置
       const targetPosition = new THREE.Vector3(
@@ -69,16 +72,20 @@ const SceneContent: React.FC = () => {
         myPlayer.position.z
       )
       
-      // 只有当距离差异较大时才进行插值
+      // 使用更平滑的插值，基于deltaTime
       const positionDistance = state.camera.position.distanceTo(targetPosition)
       const targetDistance = controlsRef.current.target.distanceTo(lookAtPosition)
       
-      if (positionDistance > 0.1) {
-        state.camera.position.lerp(targetPosition, 0.02)
+      // 动态调整插值速度 - 距离越远插值越快
+      const positionLerpFactor = positionDistance > 5 ? 0.1 : Math.min(0.08, delta * 3)
+      const targetLerpFactor = targetDistance > 2 ? 0.1 : Math.min(0.08, delta * 3)
+      
+      if (positionDistance > 0.05) {
+        state.camera.position.lerp(targetPosition, positionLerpFactor)
       }
       
-      if (targetDistance > 0.1) {
-        controlsRef.current.target.lerp(lookAtPosition, 0.02)
+      if (targetDistance > 0.05) {
+        controlsRef.current.target.lerp(lookAtPosition, targetLerpFactor)
         controlsRef.current.update()
       }
     }

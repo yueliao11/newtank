@@ -2,10 +2,10 @@ import { GameConfig } from '@/types/game'
 
 export const GAME_CONFIG: GameConfig = {
   // 玩家设置
-  PLAYER_SPEED: 5,
+  PLAYER_SPEED: 8,
   PLAYER_HEALTH: 100,
-  PLAYER_MOVE_SPEED: 15,
-  PLAYER_ROTATION_SPEED: 0.08,
+  PLAYER_MOVE_SPEED: 25,
+  PLAYER_ROTATION_SPEED: 0.12,
 
   // 子弹设置
   BULLET_SPEED: 30,

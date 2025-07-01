@@ -5,7 +5,7 @@ import { Player } from '@/types/game'
 
 export const GameHUD: React.FC = () => {
   const { gameState, players, monsters, roundTimeRemaining } = useGameStore()
-  const { myViewId, isConnected, session } = useMultiSynq()
+  const { myViewId, isConnected } = useMultiSynq()
   
   const myPlayer = Array.from(players.values()).find((p: Player) => p.viewId === myViewId)
   const alivePlayers = Array.from(players.values()).filter((p: Player) => p.isAlive)
@@ -131,7 +131,19 @@ export const GameHUD: React.FC = () => {
 const Leaderboard: React.FC = () => {
   const { players } = useGameStore()
   
-  const sortedPlayers = Array.from(players.values())
+  // 去重处理：根据钱包地址去重，相同地址只保留分数最高的
+  const uniquePlayers = new Map<string, Player>()
+  
+  Array.from(players.values()).forEach((player: Player) => {
+    const key = player.address || player.viewId // 使用钱包地址或viewId作为唯一标识
+    const existing = uniquePlayers.get(key)
+    
+    if (!existing || player.score > existing.score) {
+      uniquePlayers.set(key, player)
+    }
+  })
+  
+  const sortedPlayers = Array.from(uniquePlayers.values())
     .sort((a: Player, b: Player) => b.score - a.score)
     .slice(0, 5) // 只显示前5名
   
@@ -141,7 +153,7 @@ const Leaderboard: React.FC = () => {
         <h3 className="text-lg font-bold mb-2 text-center">🏆 排行榜</h3>
         <div className="space-y-1">
           {sortedPlayers.map((player: Player, index) => (
-            <div key={player.id} className="flex justify-between items-center">
+            <div key={player.address || player.viewId} className="flex justify-between items-center">
               <div className="flex items-center space-x-2">
                 <span className={`w-6 text-center ${
                   index === 0 ? 'text-yellow-400' :
@@ -223,10 +235,28 @@ const ControlsInfo: React.FC = () => {
 }
 
 const GameStateOverlay: React.FC = () => {
-  const { gameState, roundTimeRemaining } = useGameStore()
-  const { session } = useMultiSynq()
+  const { gameState, players } = useGameStore()
+  const { session, myViewId } = useMultiSynq()
   
-  if (gameState === 'playing') return null
+  // 检查是否有重复地址
+  const myPlayer = Array.from(players.values()).find(p => p.viewId === myViewId)
+  const duplicateAddress = myPlayer?.address && 
+    Array.from(players.values()).filter(p => p.address === myPlayer.address).length > 1
+  
+  if (gameState === 'playing') {
+    // 如果在游戏中发现重复地址，显示警告
+    if (duplicateAddress) {
+      return (
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-50">
+          <div className="bg-red-600 text-white rounded-lg p-4 max-w-md text-center">
+            <h3 className="font-bold mb-2">⚠️ 检测到重复登录</h3>
+            <p className="text-sm">同一钱包地址不应多次登录，这可能影响游戏体验。</p>
+          </div>
+        </div>
+      )
+    }
+    return null
+  }
   
   return (
     <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-70">

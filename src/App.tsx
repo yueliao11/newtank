@@ -17,7 +17,7 @@ function App() {
 }
 
 const AppContent: React.FC = () => {
-  const { isConnected, address } = useWallet()
+  const { address } = useWallet()
   const [showGame, setShowGame] = useState(false) // 默认显示欢迎界面
 
   if (!showGame) {
@@ -34,7 +34,7 @@ const AppContent: React.FC = () => {
 }
 
 const WelcomeScreen: React.FC<{ onStartGame: () => void }> = ({ onStartGame }) => {
-  const { isConnected, address } = useWallet()
+  const { isConnected, address, isCorrectNetwork } = useWallet()
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-blue-900 via-purple-900 to-black">
@@ -82,11 +82,18 @@ const WelcomeScreen: React.FC<{ onStartGame: () => void }> = ({ onStartGame }) =
           </button>
 
           {/* 状态提示 */}
-          <div className="mt-4 text-sm text-gray-400">
+          <div className="mt-4 text-sm">
             {isConnected ? (
-              <p>✅ 钱包已连接：{address?.slice(0, 6)}...{address?.slice(-4)}</p>
+              <div className="space-y-2">
+                <p className="text-green-400">✅ 钱包已连接：{address?.slice(0, 6)}...{address?.slice(-4)}</p>
+                {isCorrectNetwork ? (
+                  <p className="text-green-400">🌐 已连接到 Monad Testnet</p>
+                ) : (
+                  <p className="text-yellow-400">⚠️ 请切换到 Monad Testnet 网络</p>
+                )}
+              </div>
             ) : (
-              <p>💡 可以不连接钱包直接游戏，或连接钱包获得身份标识</p>
+              <p className="text-gray-400">💡 可以不连接钱包直接游戏，或连接钱包获得身份标识</p>
             )}
           </div>
 

@@ -33,10 +33,30 @@ export class GameModel extends Multisynq.Model {
     const { viewId, viewData } = data
     console.log(`${this.now()}: Player ${viewId} joined`)
     
+    // 检查是否已存在该viewId的玩家，避免重复创建
+    const existingPlayer = this.players.get(viewId)
+    if (existingPlayer) {
+      console.log(`${this.now()}: Player ${viewId} already exists, skipping creation`)
+      return
+    }
+    
+    // 如果有相同地址的玩家，先移除旧的
+    const address = viewData?.address || ''
+    if (address) {
+      for (const [existingViewId, player] of this.players.entries()) {
+        if (player.address === address && existingViewId !== viewId) {
+          console.log(`${this.now()}: Removing duplicate player with same address: ${existingViewId}`)
+          this.players.delete(existingViewId)
+          player.destroy()
+          this.publish('game', 'player-left', { viewId: existingViewId })
+        }
+      }
+    }
+    
     // 创建新玩家
     const player = PlayerModel.create({
       viewId,
-      address: viewData?.address || '',
+      address,
       color: viewData?.color || this.generateRandomColor(),
     })
     

@@ -1,7 +1,9 @@
-import React, { useRef, useEffect } from 'react'
+import React, { useRef, useEffect, useState } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { Player } from '@/types/game'
+import { MuzzleFlash } from './MuzzleFlash'
+import { ShellEjection } from './ShellEjection'
 
 interface TankMeshProps {
   player: Player
@@ -13,19 +15,48 @@ export const TankMesh: React.FC<TankMeshProps> = ({ player, isMyPlayer }) => {
   const turretRef = useRef<THREE.Group>(null)
   const nameRef = useRef<THREE.Mesh>(null)
   
+  // 开火效果状态
+  const [showMuzzleFlash, setShowMuzzleFlash] = useState(false)
+  const [muzzleFlashId, setMuzzleFlashId] = useState(0)
+  const lastShotTime = useRef(0)
+  const [shellEjection, setShellEjection] = useState<{ id: number; time: number } | null>(null)
+  
   // 平滑插值的目标位置和旋转
   const targetPosition = useRef(new THREE.Vector3(player.position.x, player.position.y, player.position.z))
   const targetRotation = useRef(player.rotation)
+  const lastUpdateTime = useRef(Date.now())
   
   useEffect(() => {
     targetPosition.current.set(player.position.x, player.position.y, player.position.z)
     targetRotation.current = player.rotation
+    lastUpdateTime.current = Date.now()
   }, [player.position, player.rotation])
   
-  useFrame(() => {
+  // 检测开火并触发火焰效果
+  useEffect(() => {
+    if (player.lastShot && player.lastShot > lastShotTime.current) {
+      lastShotTime.current = player.lastShot
+      
+      // 触发炮口闪光
+      setMuzzleFlashId(prev => prev + 1)
+      setShowMuzzleFlash(true)
+      
+      // 触发弹壳抛射
+      setShellEjection({ id: Date.now(), time: Date.now() })
+      
+      // 清理弹壳效果
+      setTimeout(() => setShellEjection(null), 2000)
+    }
+  }, [player.lastShot])
+  
+  useFrame((_state, delta) => {
     if (tankRef.current) {
+      // 计算距离，如果距离太大则直接跳转避免残影
+      const distance = tankRef.current.position.distanceTo(targetPosition.current)
+      const lerpFactor = distance > 5 ? 1 : Math.min(1, delta * 8) // 提高插值速度
+      
       // 平滑移动到目标位置
-      tankRef.current.position.lerp(targetPosition.current, 0.1)
+      tankRef.current.position.lerp(targetPosition.current, lerpFactor)
       
       // 平滑旋转到目标角度
       const currentRotation = tankRef.current.rotation.y
@@ -35,7 +66,9 @@ export const TankMesh: React.FC<TankMeshProps> = ({ player, isMyPlayer }) => {
       if (deltaRotation > Math.PI) deltaRotation -= Math.PI * 2
       if (deltaRotation < -Math.PI) deltaRotation += Math.PI * 2
       
-      tankRef.current.rotation.y += deltaRotation * 0.1
+      // 如果角度差太大，直接跳转
+      const rotationLerpFactor = Math.abs(deltaRotation) > Math.PI / 2 ? 1 : Math.min(1, delta * 10)
+      tankRef.current.rotation.y += deltaRotation * rotationLerpFactor
     }
     
     // 名字标签始终面向相机
@@ -106,6 +139,16 @@ export const TankMesh: React.FC<TankMeshProps> = ({ player, isMyPlayer }) => {
             metalness={0.8}
           />
         </mesh>
+        
+        {/* 炮口火焰效果 */}
+        {showMuzzleFlash && (
+          <MuzzleFlash
+            key={muzzleFlashId}
+            position={{ x: 0, y: 0, z: 3 }}
+            rotation={0}
+            onComplete={() => setShowMuzzleFlash(false)}
+          />
+        )}
       </group>
       
       {/* 履带 */}
@@ -185,6 +228,15 @@ export const TankMesh: React.FC<TankMeshProps> = ({ player, isMyPlayer }) => {
           <coneGeometry args={[0.3, 0.6, 4]} />
           <meshBasicMaterial color="#00ff00" />
         </mesh>
+      )}
+      
+      {/* 弹壳抛射效果 */}
+      {shellEjection && (
+        <ShellEjection 
+          key={shellEjection.id}
+          position={{ x: 1.2, y: 1, z: 0.5 }}
+          rotation={player.rotation}
+        />
       )}
     </group>
   )

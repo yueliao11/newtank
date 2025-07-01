@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react'
+import { switchToMonadTestnet, isMonadTestnet } from '@/lib/networks'
 
 // 简化的钱包连接器，不依赖外部 Web3 库
 interface WalletContextType {
@@ -6,8 +7,10 @@ interface WalletContextType {
   address: string | null
   isLoading: boolean
   error: string | null
+  isCorrectNetwork: boolean
   connect: () => Promise<void>
   disconnect: () => void
+  switchNetwork: () => Promise<void>
 }
 
 const WalletContext = createContext<WalletContextType | null>(null)
@@ -29,11 +32,19 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
   const [address, setAddress] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [isCorrectNetwork, setIsCorrectNetwork] = useState(false)
 
   // 检查是否已连接钱包
   useEffect(() => {
     checkConnection()
   }, [])
+
+  // 监听网络变化
+  useEffect(() => {
+    if (isConnected) {
+      checkNetwork()
+    }
+  }, [isConnected])
 
   const checkConnection = async () => {
     try {
@@ -42,10 +53,41 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
         if (accounts.length > 0) {
           setAddress(accounts[0])
           setIsConnected(true)
+          // 同时检查网络
+          await checkNetwork()
         }
       }
     } catch (err) {
       console.log('No previous wallet connection found')
+    }
+  }
+
+  const checkNetwork = async () => {
+    try {
+      const correctNetwork = await isMonadTestnet()
+      setIsCorrectNetwork(correctNetwork)
+      if (!correctNetwork) {
+        setError('请切换到 Monad Testnet 网络')
+      } else {
+        setError(null)
+      }
+    } catch (err) {
+      console.error('检查网络失败:', err)
+      setIsCorrectNetwork(false)
+    }
+  }
+
+  const switchNetwork = async () => {
+    try {
+      setIsLoading(true)
+      setError(null)
+      await switchToMonadTestnet()
+      await checkNetwork()
+    } catch (err: any) {
+      setError(err.message || '切换网络失败')
+      console.error('Network switch error:', err)
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -70,6 +112,9 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
       setAddress(accounts[0])
       setIsConnected(true)
       
+      // 连接成功后检查网络
+      await checkNetwork()
+      
       // 监听账户变化
       window.ethereum.on('accountsChanged', handleAccountsChanged)
       window.ethereum.on('chainChanged', handleChainChanged)
@@ -86,6 +131,7 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
     setAddress(null)
     setIsConnected(false)
     setError(null)
+    setIsCorrectNetwork(false)
     
     // 移除事件监听器
     if (window.ethereum) {
@@ -102,9 +148,11 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
     }
   }
 
-  const handleChainChanged = () => {
-    // 链改变时重新加载页面（简单处理）
-    window.location.reload()
+  const handleChainChanged = async () => {
+    // 链改变时重新检查网络
+    if (isConnected) {
+      await checkNetwork()
+    }
   }
 
   const value: WalletContextType = {
@@ -112,8 +160,10 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
     address,
     isLoading,
     error,
+    isCorrectNetwork,
     connect,
     disconnect,
+    switchNetwork,
   }
 
   return (
@@ -124,23 +174,58 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
 }
 
 export const WalletConnectButton: React.FC = () => {
-  const { isConnected, address, isLoading, error, connect, disconnect } = useWallet()
+  const { 
+    isConnected, 
+    address, 
+    isLoading, 
+    error, 
+    isCorrectNetwork, 
+    connect, 
+    disconnect, 
+    switchNetwork 
+  } = useWallet()
 
   if (isConnected && address) {
     return (
-      <div className="flex items-center space-x-4">
-        <div className="bg-green-100 text-green-800 px-3 py-2 rounded-lg">
-          <div className="text-xs">已连接</div>
-          <div className="font-mono text-sm">
-            {address.slice(0, 6)}...{address.slice(-4)}
+      <div className="flex flex-col space-y-2">
+        <div className="flex items-center space-x-4">
+          <div className={`px-3 py-2 rounded-lg ${
+            isCorrectNetwork 
+              ? 'bg-green-100 text-green-800' 
+              : 'bg-yellow-100 text-yellow-800'
+          }`}>
+            <div className="text-xs">
+              {isCorrectNetwork ? '已连接 Monad Testnet' : '网络错误'}
+            </div>
+            <div className="font-mono text-sm">
+              {address.slice(0, 6)}...{address.slice(-4)}
+            </div>
           </div>
+          <button
+            onClick={disconnect}
+            className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-colors"
+          >
+            断开连接
+          </button>
         </div>
-        <button
-          onClick={disconnect}
-          className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-colors"
-        >
-          断开连接
-        </button>
+        
+        {/* 网络切换按钮 */}
+        {!isCorrectNetwork && (
+          <button
+            onClick={switchNetwork}
+            disabled={isLoading}
+            className="bg-blue-500 hover:bg-blue-600 disabled:bg-gray-400 text-white px-4 py-2 rounded-lg transition-colors flex items-center space-x-2"
+          >
+            {isLoading ? (
+              <>
+                <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full" />
+                <span>切换中...</span>
+              </>
+            ) : (
+              <span>切换到 Monad Testnet</span>
+            )}
+          </button>
+        )}
       </div>
     )
   }
@@ -172,7 +257,7 @@ export const WalletConnectButton: React.FC = () => {
       )}
       
       <div className="text-xs text-gray-500 max-w-sm">
-        连接钱包后，你的地址将作为游戏中的身份标识
+        连接钱包后，你的地址将作为游戏中的身份标识。请确保连接到 Monad Testnet 网络。
       </div>
     </div>
   )
@@ -185,6 +270,7 @@ declare global {
       request: (args: { method: string; params?: any[] }) => Promise<any>
       on: (event: string, handler: (...args: any[]) => void) => void
       removeListener: (event: string, handler: (...args: any[]) => void) => void
+      isMetaMask?: boolean
     }
   }
 }
