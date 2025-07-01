@@ -10,6 +10,7 @@ import { MonsterMesh } from './entities/MonsterMesh'
 import { BulletMesh } from './entities/BulletMesh'
 import { ExplosionEffect } from './entities/ExplosionEffect'
 import { Minimap } from './Minimap'
+import { ClientPrediction } from './ClientPrediction'
 
 export const GameScene: React.FC = () => {
   return (
@@ -43,6 +44,9 @@ export const GameScene: React.FC = () => {
       
       {/* 小地图覆盖层 */}
       <Minimap />
+      
+      {/* 客户端预测控制器 */}
+      <ClientPrediction />
     </div>
   )
 }

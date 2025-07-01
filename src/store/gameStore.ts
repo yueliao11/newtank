@@ -22,6 +22,13 @@ interface GameStore extends GameState {
   inputState: InputState
   setInputState: (input: Partial<InputState>) => void
   
+  // 客户端预测状态
+  predictedPosition: { x: number; y: number; z: number } | null
+  predictedRotation: number | null
+  setPredictedPosition: (position: { x: number; y: number; z: number }) => void
+  setPredictedRotation: (rotation: number) => void
+  clearPrediction: () => void
+  
   // 小地图状态
   minimapVisible: boolean
   setMinimapVisible: (visible: boolean) => void
@@ -90,6 +97,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
     mouseX: 0,
     mouseY: 0,
   },
+  
+  // 客户端预测状态
+  predictedPosition: null,
+  predictedRotation: null,
+  setPredictedPosition: (position) => set({ predictedPosition: position }),
+  setPredictedRotation: (rotation) => set({ predictedRotation: rotation }),
+  clearPrediction: () => set({ predictedPosition: null, predictedRotation: null }),
   
   // 小地图状态
   minimapVisible: true,

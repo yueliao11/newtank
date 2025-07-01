@@ -4,6 +4,7 @@ import * as THREE from 'three'
 import { Player } from '@/types/game'
 import { MuzzleFlash } from './MuzzleFlash'
 import { ShellEjection } from './ShellEjection'
+import { useGameStore } from '@/store/gameStore'
 
 interface TankMeshProps {
   player: Player
@@ -11,6 +12,7 @@ interface TankMeshProps {
 }
 
 export const TankMesh: React.FC<TankMeshProps> = ({ player, isMyPlayer }) => {
+  const { predictedPosition, predictedRotation } = useGameStore()
   const tankRef = useRef<THREE.Group>(null)
   const turretRef = useRef<THREE.Group>(null)
   const nameRef = useRef<THREE.Mesh>(null)
@@ -27,10 +29,21 @@ export const TankMesh: React.FC<TankMeshProps> = ({ player, isMyPlayer }) => {
   const lastUpdateTime = useRef(Date.now())
   
   useEffect(() => {
-    targetPosition.current.set(player.position.x, player.position.y, player.position.z)
-    targetRotation.current = player.rotation
+    // 为我的玩家使用客户端预测，其他玩家使用服务器位置
+    if (isMyPlayer && predictedPosition) {
+      targetPosition.current.set(predictedPosition.x, predictedPosition.y, predictedPosition.z)
+    } else {
+      targetPosition.current.set(player.position.x, player.position.y, player.position.z)
+    }
+    
+    if (isMyPlayer && predictedRotation !== null) {
+      targetRotation.current = predictedRotation
+    } else {
+      targetRotation.current = player.rotation
+    }
+    
     lastUpdateTime.current = Date.now()
-  }, [player.position, player.rotation])
+  }, [player.position, player.rotation, isMyPlayer, predictedPosition, predictedRotation])
   
   // 检测开火并触发火焰效果
   useEffect(() => {
@@ -51,9 +64,17 @@ export const TankMesh: React.FC<TankMeshProps> = ({ player, isMyPlayer }) => {
   
   useFrame((_state, delta) => {
     if (tankRef.current) {
-      // 计算距离，如果距离太大则直接跳转避免残影
+      // 为我的玩家提供更即时的响应
       const distance = tankRef.current.position.distanceTo(targetPosition.current)
-      const lerpFactor = distance > 5 ? 1 : Math.min(1, delta * 8) // 提高插值速度
+      let lerpFactor: number
+      
+      if (isMyPlayer) {
+        // 我的玩家：更快的响应，减少延迟感
+        lerpFactor = distance > 5 ? 1 : Math.min(1, delta * 15)
+      } else {
+        // 其他玩家：正常的平滑插值
+        lerpFactor = distance > 5 ? 1 : Math.min(1, delta * 8)
+      }
       
       // 平滑移动到目标位置
       tankRef.current.position.lerp(targetPosition.current, lerpFactor)
@@ -66,8 +87,14 @@ export const TankMesh: React.FC<TankMeshProps> = ({ player, isMyPlayer }) => {
       if (deltaRotation > Math.PI) deltaRotation -= Math.PI * 2
       if (deltaRotation < -Math.PI) deltaRotation += Math.PI * 2
       
-      // 如果角度差太大，直接跳转
-      const rotationLerpFactor = Math.abs(deltaRotation) > Math.PI / 2 ? 1 : Math.min(1, delta * 10)
+      // 旋转插值 - 我的玩家更快响应
+      let rotationLerpFactor: number
+      if (isMyPlayer) {
+        rotationLerpFactor = Math.abs(deltaRotation) > Math.PI / 2 ? 1 : Math.min(1, delta * 20)
+      } else {
+        rotationLerpFactor = Math.abs(deltaRotation) > Math.PI / 2 ? 1 : Math.min(1, delta * 10)
+      }
+      
       tankRef.current.rotation.y += deltaRotation * rotationLerpFactor
     }
     
