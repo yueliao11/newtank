@@ -196,7 +196,7 @@ export const MonsterMesh: React.FC<MonsterMeshProps> = ({ monster }) => {
       )}
       
       {/* 检测范围指示（调试用，可选） */}
-      {process.env.NODE_ENV === 'development' && monster.health > 0 && monster.aiData && (
+      {import.meta.env.DEV && monster.health > 0 && monster.aiData && (
         <mesh position={[0, 0.1, 0]} rotation={[-Math.PI / 2, 0, 0]}>
           <ringGeometry args={[monster.aiData.detectionRadius - 0.5, monster.aiData.detectionRadius, 32]} />
           <meshBasicMaterial 

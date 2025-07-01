@@ -9,7 +9,6 @@ interface BulletMeshProps {
 
 export const BulletMesh: React.FC<BulletMeshProps> = ({ bullet }) => {
   const bulletRef = useRef<THREE.Group>(null)
-  const [previousPositions, setPreviousPositions] = useState<THREE.Vector3[]>([])
   const [trailPoints, setTrailPoints] = useState<THREE.Vector3[]>([])
   
   // 更新轨迹点
@@ -19,10 +18,6 @@ export const BulletMesh: React.FC<BulletMeshProps> = ({ bullet }) => {
         typeof bullet.position.y === 'number' && 
         typeof bullet.position.z === 'number') {
       const currentPos = new THREE.Vector3(bullet.position.x, bullet.position.y, bullet.position.z)
-      setPreviousPositions(prev => {
-        const newPositions = [currentPos, ...prev.slice(0, 8)]
-        return newPositions
-      })
       
       // 为粒子轨迹创建点
       setTrailPoints(prev => {
@@ -45,7 +40,7 @@ export const BulletMesh: React.FC<BulletMeshProps> = ({ bullet }) => {
   })
   
   // 安全的位置处理
-  const safePosition = bullet.position && 
+  const safePosition: [number, number, number] = bullet.position && 
     typeof bullet.position.x === 'number' && 
     typeof bullet.position.y === 'number' && 
     typeof bullet.position.z === 'number'
@@ -60,7 +55,7 @@ export const BulletMesh: React.FC<BulletMeshProps> = ({ bullet }) => {
       {/* 主要子弹体 - 更亮更突出 */}
       <mesh castShadow>
         <sphereGeometry args={[0.25, 12, 8]} />
-        <meshBasicMaterial 
+        <meshStandardMaterial 
           color="#ff2200" 
           emissive="#ff1100"
           emissiveIntensity={1.2}
@@ -92,7 +87,7 @@ export const BulletMesh: React.FC<BulletMeshProps> = ({ bullet }) => {
       {/* 白色核心 */}
       <mesh>
         <sphereGeometry args={[0.12, 8, 6]} />
-        <meshBasicMaterial 
+        <meshStandardMaterial 
           color="#ffffff" 
           emissive="#ffffff"
           emissiveIntensity={1.5}

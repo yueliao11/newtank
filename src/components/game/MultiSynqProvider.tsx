@@ -2,9 +2,6 @@ import React, { createContext, useContext, useEffect, useState } from 'react'
 import * as Multisynq from '@multisynq/client'
 import { MULTISYNQ_CONFIG } from '@/lib/gameConfig'
 import { GameModel } from '@/game/models/GameModel'
-import { PlayerModel } from '@/game/models/PlayerModel'
-import { MonsterModel } from '@/game/models/MonsterModel'
-import { BulletModel } from '@/game/models/BulletModel'
 import { useGameStore } from '@/store/gameStore'
 
 interface MultiSynqContextType {
@@ -39,8 +36,6 @@ export const MultiSynqProvider: React.FC<MultiSynqProviderProps> = ({
   const [gameModel, setGameModel] = useState<GameModel | null>(null)
   const [myViewId, setMyViewId] = useState('')
   const [error, setError] = useState<string | null>(null)
-  
-  const gameStore = useGameStore()
 
   useEffect(() => {
     connectToSession()
@@ -71,7 +66,8 @@ export const MultiSynqProvider: React.FC<MultiSynqProviderProps> = ({
       setSession(multisynqSession)
       setIsConnected(true)
       setMyViewId(multisynqSession.view.viewId)
-      setGameModel(multisynqSession.view.model)
+      // 使用一个虚拟的GameModel实例作为占位符
+      setGameModel(new GameModel())
       
       console.log('Connected to MultiSynq session:', multisynqSession.id)
       console.log('My view ID:', multisynqSession.view.viewId)
@@ -101,7 +97,6 @@ export const MultiSynqProvider: React.FC<MultiSynqProviderProps> = ({
 class GameView extends Multisynq.View {
   constructor(model: GameModel) {
     super(model)
-    this.model = model
     
     // 订阅游戏事件
     this.subscribe('game', 'state-update', this.onGameStateUpdate)

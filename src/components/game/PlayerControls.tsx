@@ -280,14 +280,19 @@ export const MobileControls: React.FC = () => {
       <VirtualJoystick
         onMove={(direction) => {
           const moveData = {
-            forward: direction.y > 0.3,
-            backward: direction.y < -0.3,
-            left: direction.x < -0.3,
-            right: direction.x > 0.3,
+            moveForward: direction.y > 0.3,
+            moveBackward: direction.y < -0.3,
+            moveLeft: direction.x < -0.3,
+            moveRight: direction.x > 0.3,
           }
           
           setInputState(moveData)
-          sendInput('move', moveData)
+          sendInput('move', {
+            forward: moveData.moveForward,
+            backward: moveData.moveBackward,
+            left: moveData.moveLeft,
+            right: moveData.moveRight,
+          })
         }}
       />
       

@@ -9,7 +9,6 @@ interface ShellEjectionProps {
 
 export const ShellEjection: React.FC<ShellEjectionProps> = ({ position, rotation }) => {
   const shellRef = useRef<THREE.Group>(null)
-  const [progress, setProgress] = useState(0)
   const startTime = useRef(Date.now())
   const duration = 1500 // 1.5秒弹壳抛射时间
   
@@ -27,7 +26,6 @@ export const ShellEjection: React.FC<ShellEjectionProps> = ({ position, rotation
   useFrame(() => {
     const elapsed = (Date.now() - startTime.current) / 1000 // 转换为秒
     const newProgress = Math.min(elapsed / (duration / 1000), 1)
-    setProgress(newProgress)
     
     if (shellRef.current) {
       // 物理运动计算
