@@ -191,29 +191,38 @@ const Ground: React.FC = () => {
 }
 
 const SceneDecorations: React.FC = () => {
+  // 使用 useMemo 确保装饰物位置只生成一次
+  const treePositions = React.useMemo(() => 
+    Array.from({ length: 20 }, () => [
+      (Math.random() - 0.5) * 180,
+      0,
+      (Math.random() - 0.5) * 180
+    ] as [number, number, number])
+  , [])
+  
+  const rockPositions = React.useMemo(() => 
+    Array.from({ length: 15 }, () => [
+      (Math.random() - 0.5) * 190,
+      0,
+      (Math.random() - 0.5) * 190
+    ] as [number, number, number])
+  , [])
+
   return (
     <group>
       {/* 一些随机的树木装饰 */}
-      {Array.from({ length: 20 }, (_, i) => (
+      {treePositions.map((position, i) => (
         <Tree
           key={i}
-          position={[
-            (Math.random() - 0.5) * 180,
-            0,
-            (Math.random() - 0.5) * 180
-          ]}
+          position={position}
         />
       ))}
       
       {/* 一些石头装饰 */}
-      {Array.from({ length: 15 }, (_, i) => (
+      {rockPositions.map((position, i) => (
         <Rock
           key={i}
-          position={[
-            (Math.random() - 0.5) * 190,
-            0,
-            (Math.random() - 0.5) * 190
-          ]}
+          position={position}
         />
       ))}
     </group>
@@ -221,8 +230,11 @@ const SceneDecorations: React.FC = () => {
 }
 
 const Tree: React.FC<{ position: [number, number, number] }> = ({ position }) => {
-  const trunkHeight = 2 + Math.random() * 3
-  const leavesSize = 1.5 + Math.random() * 2
+  // 使用 useMemo 确保树的尺寸只生成一次
+  const { trunkHeight, leavesSize } = React.useMemo(() => ({
+    trunkHeight: 2 + Math.random() * 3,
+    leavesSize: 1.5 + Math.random() * 2
+  }), [])
   
   return (
     <group position={position}>
@@ -242,7 +254,8 @@ const Tree: React.FC<{ position: [number, number, number] }> = ({ position }) =>
 }
 
 const Rock: React.FC<{ position: [number, number, number] }> = ({ position }) => {
-  const size = 0.5 + Math.random() * 1.5
+  // 使用 useMemo 确保石头的尺寸只生成一次
+  const size = React.useMemo(() => 0.5 + Math.random() * 1.5, [])
   
   return (
     <mesh position={position} castShadow>
