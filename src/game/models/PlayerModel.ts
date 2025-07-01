@@ -49,10 +49,10 @@ export class PlayerModel extends Multisynq.Model {
     
     switch (type) {
       case 'move':
-        this.controls.moveForward = data.forward
-        this.controls.moveBackward = data.backward
-        this.controls.moveLeft = data.left
-        this.controls.moveRight = data.right
+        this.controls.moveForward = data.moveForward || data.forward || false
+        this.controls.moveBackward = data.moveBackward || data.backward || false
+        this.controls.moveLeft = data.moveLeft || data.left || false
+        this.controls.moveRight = data.moveRight || data.right || false
         break
         
       case 'rotate':

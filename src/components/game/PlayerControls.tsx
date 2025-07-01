@@ -17,10 +17,10 @@ export const PlayerControls: React.FC = () => {
     if (now - lastInputSent.current.move < 25) return // 限制到 40fps，提高响应性
     
     const moveData = {
-      forward: inputState.moveForward,
-      backward: inputState.moveBackward,
-      left: inputState.moveLeft,
-      right: inputState.moveRight,
+      moveForward: inputState.moveForward,
+      moveBackward: inputState.moveBackward,
+      moveLeft: inputState.moveLeft,
+      moveRight: inputState.moveRight,
     }
     
     session.view.sendInput('move', moveData)
@@ -96,8 +96,10 @@ export const PlayerControls: React.FC = () => {
     
     if (needsUpdate) {
       setInputState(newInputState)
+      // 立即发送移动输入
+      setTimeout(() => sendMoveInput(), 0)
     }
-  }, [inputState, setInputState, sendShootInput])
+  }, [inputState, setInputState, sendShootInput, sendMoveInput])
   
   // 处理键盘释放事件
   const handleKeyUp = useCallback((event: KeyboardEvent) => {
@@ -135,8 +137,10 @@ export const PlayerControls: React.FC = () => {
     
     if (needsUpdate) {
       setInputState(newInputState)
+      // 立即发送移动输入
+      setTimeout(() => sendMoveInput(), 0)
     }
-  }, [inputState, setInputState])
+  }, [inputState, setInputState, sendMoveInput])
   
   // 处理鼠标移动事件
   const handleMouseMove = useCallback((event: MouseEvent) => {
@@ -288,10 +292,10 @@ export const MobileControls: React.FC = () => {
           
           setInputState(moveData)
           sendInput('move', {
-            forward: moveData.moveForward,
-            backward: moveData.moveBackward,
-            left: moveData.moveLeft,
-            right: moveData.moveRight,
+            moveForward: moveData.moveForward,
+            moveBackward: moveData.moveBackward,
+            moveLeft: moveData.moveLeft,
+            moveRight: moveData.moveRight,
           })
         }}
       />
