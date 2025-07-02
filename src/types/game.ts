@@ -81,6 +81,14 @@ export interface InputState {
   mouseY: number
 }
 
+export interface Obstacle {
+  id: string
+  type: 'tree' | 'rock'
+  position: Position
+  radius: number
+  height?: number
+}
+
 export interface GameConfig {
   PLAYER_SPEED: number
   PLAYER_HEALTH: number

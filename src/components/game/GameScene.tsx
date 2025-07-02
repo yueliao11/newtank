@@ -4,13 +4,14 @@ import { OrbitControls, Environment, Grid } from '@react-three/drei'
 import * as THREE from 'three'
 import { useGameStore } from '@/store/gameStore'
 import { useMultiSynq } from './MultiSynqProvider'
-import { Player } from '@/types/game'
+import { Player, Obstacle } from '@/types/game'
 import { TankMesh } from './entities/TankMesh'
 import { MonsterMesh } from './entities/MonsterMesh'
 import { BulletMesh } from './entities/BulletMesh'
 import { ExplosionEffect } from './entities/ExplosionEffect'
 import { Minimap } from './Minimap'
 import { ClientPrediction } from './ClientPrediction'
+import { generateObstacles } from '@/lib/collisionUtils'
 
 export const GameScene: React.FC = () => {
   return (
@@ -53,7 +54,7 @@ export const GameScene: React.FC = () => {
 
 const SceneContent: React.FC = () => {
   const { myViewId } = useMultiSynq()
-  const { players, monsters, bullets, explosions, removeExplosion } = useGameStore()
+  const { players, monsters, bullets, explosions, obstacles, removeExplosion } = useGameStore()
   const controlsRef = useRef<any>()
 
   // 找到我的玩家
@@ -182,8 +183,13 @@ const SceneContent: React.FC = () => {
         />
       ))}
       
-      {/* 场景装饰 */}
-      <SceneDecorations />
+      {/* 障碍物 */}
+      {obstacles.map((obstacle) => (
+        <ObstacleMesh
+          key={obstacle.id}
+          obstacle={obstacle}
+        />
+      ))}
     </>
   )
 }
@@ -201,77 +207,40 @@ const Ground: React.FC = () => {
   )
 }
 
-const SceneDecorations: React.FC = () => {
-  // 使用 useMemo 确保装饰物位置只生成一次
-  const treePositions = React.useMemo(() => 
-    Array.from({ length: 20 }, () => [
-      (Math.random() - 0.5) * 180,
-      0,
-      (Math.random() - 0.5) * 180
-    ] as [number, number, number])
-  , [])
-  
-  const rockPositions = React.useMemo(() => 
-    Array.from({ length: 15 }, () => [
-      (Math.random() - 0.5) * 190,
-      0,
-      (Math.random() - 0.5) * 190
-    ] as [number, number, number])
-  , [])
 
-  return (
-    <group>
-      {/* 一些随机的树木装饰 */}
-      {treePositions.map((position, i) => (
-        <Tree
-          key={i}
-          position={position}
-        />
-      ))}
-      
-      {/* 一些石头装饰 */}
-      {rockPositions.map((position, i) => (
-        <Rock
-          key={i}
-          position={position}
-        />
-      ))}
-    </group>
-  )
-}
+const ObstacleMesh: React.FC<{ obstacle: Obstacle }> = ({ obstacle }) => {
+  const position: [number, number, number] = [
+    obstacle.position.x,
+    obstacle.position.y,
+    obstacle.position.z
+  ]
 
-const Tree: React.FC<{ position: [number, number, number] }> = ({ position }) => {
-  // 使用 useMemo 确保树的尺寸只生成一次
-  const { trunkHeight, leavesSize } = React.useMemo(() => ({
-    trunkHeight: 2 + Math.random() * 3,
-    leavesSize: 1.5 + Math.random() * 2
-  }), [])
-  
-  return (
-    <group position={position}>
-      {/* 树干 */}
-      <mesh position={[0, trunkHeight / 2, 0]} castShadow>
-        <cylinderGeometry args={[0.3, 0.4, trunkHeight, 8]} />
-        <meshStandardMaterial color="#8B4513" />
+  if (obstacle.type === 'tree') {
+    const trunkHeight = obstacle.height || 3
+    const leavesSize = obstacle.radius * 0.8
+    
+    return (
+      <group position={position}>
+        {/* 树干 */}
+        <mesh position={[0, trunkHeight / 2, 0]} castShadow>
+          <cylinderGeometry args={[0.3, 0.4, trunkHeight, 8]} />
+          <meshStandardMaterial color="#8B4513" />
+        </mesh>
+        
+        {/* 树叶 */}
+        <mesh position={[0, trunkHeight + leavesSize / 2, 0]} castShadow>
+          <sphereGeometry args={[leavesSize, 8, 6]} />
+          <meshStandardMaterial color="#228B22" />
+        </mesh>
+      </group>
+    )
+  } else {
+    // 石头
+    return (
+      <mesh position={position} castShadow>
+        <dodecahedronGeometry args={[obstacle.radius]} />
+        <meshStandardMaterial color="#696969" roughness={0.9} />
       </mesh>
-      
-      {/* 树叶 */}
-      <mesh position={[0, trunkHeight + leavesSize / 2, 0]} castShadow>
-        <sphereGeometry args={[leavesSize, 8, 6]} />
-        <meshStandardMaterial color="#228B22" />
-      </mesh>
-    </group>
-  )
-}
-
-const Rock: React.FC<{ position: [number, number, number] }> = ({ position }) => {
-  // 使用 useMemo 确保石头的尺寸只生成一次
-  const size = React.useMemo(() => 0.5 + Math.random() * 1.5, [])
-  
-  return (
-    <mesh position={position} castShadow>
-      <dodecahedronGeometry args={[size]} />
-      <meshStandardMaterial color="#696969" roughness={0.9} />
-    </mesh>
-  )
+    )
+  }
 }

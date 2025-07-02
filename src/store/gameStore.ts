@@ -1,5 +1,6 @@
 import { create } from 'zustand'
-import { GameState, Player, Monster, Bullet, LeaderboardEntry, InputState, HUDData } from '@/types/game'
+import { GameState, Player, Monster, Bullet, LeaderboardEntry, InputState, HUDData, Obstacle } from '@/types/game'
+import { generateObstacles } from '@/lib/collisionUtils'
 
 interface Explosion {
   id: string
@@ -28,6 +29,9 @@ interface GameStore extends GameState {
   setPredictedPosition: (position: { x: number; y: number; z: number }) => void
   setPredictedRotation: (rotation: number) => void
   clearPrediction: () => void
+  
+  // 障碍物数据
+  obstacles: Obstacle[]
   
   // 小地图状态
   minimapVisible: boolean
@@ -104,6 +108,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
   setPredictedPosition: (position) => set({ predictedPosition: position }),
   setPredictedRotation: (rotation) => set({ predictedRotation: rotation }),
   clearPrediction: () => set({ predictedPosition: null, predictedRotation: null }),
+  
+  // 障碍物数据
+  obstacles: generateObstacles(),
   
   // 小地图状态
   minimapVisible: true,

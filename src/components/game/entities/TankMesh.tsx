@@ -64,20 +64,22 @@ export const TankMesh: React.FC<TankMeshProps> = ({ player, isMyPlayer }) => {
   
   useFrame((_state, delta) => {
     if (tankRef.current) {
-      // 为我的玩家提供更即时的响应
       const distance = tankRef.current.position.distanceTo(targetPosition.current)
-      let lerpFactor: number
       
+      // 为我的玩家提供更快响应，其他玩家保持平滑
+      let lerpFactor: number
       if (isMyPlayer) {
-        // 我的玩家：更快的响应，减少延迟感
-        lerpFactor = distance > 5 ? 1 : Math.min(1, delta * 15)
+        // 我的玩家：极快响应，几乎立即跟随
+        lerpFactor = distance > 1 ? 1 : Math.min(0.8, delta * 25)
       } else {
-        // 其他玩家：正常的平滑插值
-        lerpFactor = distance > 5 ? 1 : Math.min(1, delta * 8)
+        // 其他玩家：平滑插值
+        lerpFactor = distance > 2 ? 0.7 : Math.min(0.1, delta * 5)
       }
       
-      // 平滑移动到目标位置
-      tankRef.current.position.lerp(targetPosition.current, lerpFactor)
+      // 降低阈值，让更小的移动也能被捕获
+      if (distance > (isMyPlayer ? 0.001 : 0.01)) {
+        tankRef.current.position.lerp(targetPosition.current, lerpFactor)
+      }
       
       // 平滑旋转到目标角度
       const currentRotation = tankRef.current.rotation.y
@@ -87,15 +89,20 @@ export const TankMesh: React.FC<TankMeshProps> = ({ player, isMyPlayer }) => {
       if (deltaRotation > Math.PI) deltaRotation -= Math.PI * 2
       if (deltaRotation < -Math.PI) deltaRotation += Math.PI * 2
       
-      // 旋转插值 - 我的玩家更快响应
+      // 为我的玩家提供更快旋转响应
       let rotationLerpFactor: number
       if (isMyPlayer) {
-        rotationLerpFactor = Math.abs(deltaRotation) > Math.PI / 2 ? 1 : Math.min(1, delta * 20)
+        // 我的玩家：极快旋转响应，几乎立即跟随
+        rotationLerpFactor = Math.abs(deltaRotation) > Math.PI / 6 ? 1 : Math.min(0.9, delta * 30)
       } else {
-        rotationLerpFactor = Math.abs(deltaRotation) > Math.PI / 2 ? 1 : Math.min(1, delta * 10)
+        // 其他玩家：平滑旋转
+        rotationLerpFactor = Math.abs(deltaRotation) > Math.PI / 4 ? 0.4 : Math.min(0.08, delta * 3)
       }
       
-      tankRef.current.rotation.y += deltaRotation * rotationLerpFactor
+      // 降低阈值，让更小的旋转也能被捕获
+      if (Math.abs(deltaRotation) > (isMyPlayer ? 0.001 : 0.01)) {
+        tankRef.current.rotation.y += deltaRotation * rotationLerpFactor
+      }
     }
     
     // 名字标签始终面向相机

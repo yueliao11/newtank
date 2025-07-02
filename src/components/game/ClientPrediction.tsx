@@ -2,10 +2,11 @@ import React, { useRef, useEffect, useCallback } from 'react'
 import { useGameStore } from '@/store/gameStore'
 import { useMultiSynq } from './MultiSynqProvider'
 import { GAME_CONFIG } from '@/lib/gameConfig'
+import { generateObstacles, findNearestValidPosition } from '@/lib/collisionUtils'
 
 // 客户端预测控制器
 export const ClientPrediction: React.FC = () => {
-  const { inputState, setPredictedPosition, setPredictedRotation, clearPrediction } = useGameStore()
+  const { inputState, obstacles, setPredictedPosition, setPredictedRotation, clearPrediction } = useGameStore()
   const { myViewId, isConnected } = useMultiSynq()
   
   // 客户端物理状态
@@ -34,9 +35,9 @@ export const ClientPrediction: React.FC = () => {
     const dt = deltaTime / 1000 // 转换为秒
     const state = localState.current
     
-    // 检查是否有输入变化
+    // 检查是否有输入变化 - 降低速度阈值，提高响应性
     const hasInput = inputState.moveForward || inputState.moveBackward || inputState.moveLeft || inputState.moveRight
-    if (!hasInput && Math.abs(state.velocity.x) < 0.01 && Math.abs(state.velocity.z) < 0.01) {
+    if (!hasInput && Math.abs(state.velocity.x) < 0.001 && Math.abs(state.velocity.z) < 0.001) {
       return // 没有输入且速度很小时跳过更新
     }
     
@@ -76,15 +77,26 @@ export const ClientPrediction: React.FC = () => {
       state.velocity.z = (state.velocity.z / currentSpeed) * physics.maxSpeed
     }
     
-    // 更新位置
+    // 更新位置（先计算新位置）
     const mapSize = GAME_CONFIG.MAP_SIZE / 2
-    const newX = Math.max(-mapSize, Math.min(mapSize, state.position.x + state.velocity.x * dt * 60))
-    const newZ = Math.max(-mapSize, Math.min(mapSize, state.position.z + state.velocity.z * dt * 60))
+    let newX = Math.max(-mapSize, Math.min(mapSize, state.position.x + state.velocity.x * dt * 60))
+    let newZ = Math.max(-mapSize, Math.min(mapSize, state.position.z + state.velocity.z * dt * 60))
+    
+    // 检查新位置是否与障碍物碰撞
+    const newPosition = { x: newX, y: state.position.y, z: newZ }
+    const validPosition = findNearestValidPosition(newPosition, state.position, obstacles)
     
     // 只在位置实际改变时才更新
-    if (Math.abs(newX - state.position.x) > 0.001 || Math.abs(newZ - state.position.z) > 0.001) {
-      state.position.x = newX
-      state.position.z = newZ
+    if (Math.abs(validPosition.x - state.position.x) > 0.0001 || Math.abs(validPosition.z - state.position.z) > 0.0001) {
+      state.position.x = validPosition.x
+      state.position.z = validPosition.z
+      
+      // 如果发生碰撞，更柔和地减少速度，保持流畅性
+      if (validPosition.x !== newX || validPosition.z !== newZ) {
+        // 减少速度损失，让碰撞时仍能保持一定的移动能力
+        state.velocity.x *= 0.6
+        state.velocity.z *= 0.6
+      }
     }
     
   }, [inputState, isConnected])
@@ -113,7 +125,7 @@ export const ClientPrediction: React.FC = () => {
   // 服务器状态校正
   const reconcileWithServer = useCallback((serverPosition: any, serverRotation: number) => {
     const state = localState.current
-    const threshold = 0.5 // 差异阈值
+    const threshold = 1.5 // 进一步增大差异阈值，减少不必要的校正
     
     // 检查位置差异
     const positionDiff = Math.sqrt(
@@ -123,17 +135,17 @@ export const ClientPrediction: React.FC = () => {
     
     // 如果差异太大，进行校正
     if (positionDiff > threshold) {
-      // 平滑校正而不是突然跳转
-      const correctionFactor = 0.3
+      // 非常平滑的校正，避免打断用户体验
+      const correctionFactor = 0.05
       state.position.x += (serverPosition.x - state.position.x) * correctionFactor
       state.position.z += (serverPosition.z - state.position.z) * correctionFactor
       setPredictedPosition({ ...state.position })
     }
     
-    // 旋转校正
+    // 旋转校正 - 进一步增大阈值，减少对用户操作的干扰
     const rotationDiff = Math.abs(serverRotation - state.rotation)
-    if (rotationDiff > 0.1) {
-      state.rotation += (serverRotation - state.rotation) * 0.3
+    if (rotationDiff > 0.3) {
+      state.rotation += (serverRotation - state.rotation) * 0.05
       setPredictedRotation(state.rotation)
     }
     
@@ -154,7 +166,7 @@ export const ClientPrediction: React.FC = () => {
       const deltaTime = now - lastTime
       
       // 限制更新频率，避免过于频繁的状态更新
-      if (deltaTime < 16) { // 如果距离上次更新不到16ms就跳过
+      if (deltaTime < 16) { // 如果距离上次更新不到16ms就跳过，保持60fps响应性
         animationId = requestAnimationFrame(update)
         return
       }
@@ -167,8 +179,8 @@ export const ClientPrediction: React.FC = () => {
       updateLocalPhysics(safeDeltaTime)
       updateLocalRotation()
       
-      // 节流的状态更新 - 限制到30fps以防止无限循环
-      if (now - lastStateUpdate > 33) {
+      // 节流的状态更新 - 限制到60fps，最大化响应性
+      if (now - lastStateUpdate > 16) {
         const state = localState.current
         setPredictedPosition({ ...state.position })
         setPredictedRotation(state.rotation)
@@ -205,7 +217,7 @@ export const ClientPrediction: React.FC = () => {
         localState.current.serverRotation = myPlayer.rotation
         localState.current.reconciled = true
       }
-    }, 100) // 每100ms检查一次服务器状态，避免过于频繁
+    }, 250) // 每250ms检查一次服务器状态，减少对用户输入的干扰
     
     return () => clearInterval(interval)
   }, [myViewId, reconcileWithServer])

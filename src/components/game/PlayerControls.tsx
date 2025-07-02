@@ -14,7 +14,7 @@ export const PlayerControls: React.FC = () => {
     if (!session?.view || !isConnected) return
     
     const now = Date.now()
-    if (now - lastInputSent.current.move < 25) return // 限制到 40fps，提高响应性
+    if (now - lastInputSent.current.move < 16) return // 限制到 60fps，最大化响应性
     
     const moveData = {
       moveForward: inputState.moveForward,
@@ -32,7 +32,7 @@ export const PlayerControls: React.FC = () => {
     if (!session?.view || !isConnected) return
     
     const now = Date.now()
-    if (now - lastInputSent.current.rotate < 25) return // 限制到 40fps，提高响应性
+    if (now - lastInputSent.current.rotate < 16) return // 限制到 60fps，最大化响应性
     
     session.view.sendInput('rotate', { rotation })
     lastInputSent.current.rotate = now
@@ -96,7 +96,7 @@ export const PlayerControls: React.FC = () => {
     
     if (needsUpdate) {
       setInputState(newInputState)
-      // 立即发送移动输入
+      // 立即发送移动输入，提高响应性
       setTimeout(() => sendMoveInput(), 0)
     }
   }, [inputState, setInputState, sendShootInput, sendMoveInput])
@@ -137,7 +137,7 @@ export const PlayerControls: React.FC = () => {
     
     if (needsUpdate) {
       setInputState(newInputState)
-      // 立即发送移动输入
+      // 立即发送移动输入，提高响应性
       setTimeout(() => sendMoveInput(), 0)
     }
   }, [inputState, setInputState, sendMoveInput])
@@ -270,7 +270,7 @@ export const MobileControls: React.FC = () => {
     if (!session?.view || !isConnected) return
     
     const now = Date.now()
-    if (now - lastInputSent.current[type as keyof typeof lastInputSent.current] < 50) return
+    if (now - lastInputSent.current[type as keyof typeof lastInputSent.current] < 16) return
     
     session.view.sendInput(type, data)
     lastInputSent.current[type as keyof typeof lastInputSent.current] = now
